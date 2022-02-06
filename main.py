@@ -41,6 +41,7 @@ def read_csv(path):
 
 
 def geolocation(data_base, year, latitude, longitude):
+
     geolocator = Nominatim(user_agent="Films map")
     geocode = RateLimiter(geolocator.geocode, min_delay_seconds=0.5)
     condition = (data_base['year'] == year)
@@ -49,14 +50,15 @@ def geolocation(data_base, year, latitude, longitude):
     point_series = location_series.apply(lambda loc: tuple([loc.point[0], loc.point[1]]) if loc else None)
     valid_films["points"] = point_series
     valid_films["distance_to_the_current_point"] = 0
+
     for i in range(len(valid_films["points"])):
         point = valid_films.iloc[i, 4]
         valid_films.iloc[i, 5] = distance.distance(point, (latitude, longitude)).miles
-    print(valid_films)
+
     return valid_films
 
 
-def creating_map(data_base, year, latitude, longitude):
+def creating_map(data_base, latitude, longitude):
     def nearest_points(db):
         new_db = pd.DataFrame([])
         for i in range(min(len(db), 10)):
@@ -78,7 +80,6 @@ def creating_map(data_base, year, latitude, longitude):
     if check:
         fg = folium.FeatureGroup(name="Nearest films")
         data_base = nearest_points(data_base)
-        print(data_base)
         for point in data_base["points"]:
             if point:
                 lat = point[0]
@@ -93,7 +94,8 @@ def creating_map(data_base, year, latitude, longitude):
 def main():
     pars_res = parsing(["2010", "80.2323", "23.67", "data/shortened_and_processed_locations_list(3000 lines)"])
     db = geolocation(read_csv(pars_res[3]), pars_res[0], pars_res[1], pars_res[2])
-    creating_map(db, pars_res[0], pars_res[1], pars_res[2])
+    creating_map(db, pars_res[1], pars_res[2])
+
 
 if __name__ == "__main__":
     main()
