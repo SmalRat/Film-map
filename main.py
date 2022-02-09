@@ -1,9 +1,86 @@
 import pandas as pd, argparse
 import folium
 import random
+from logging import DEBUG, debug, getLogger
 from geopy.extra.rate_limiter import RateLimiter
 from geopy.geocoders import Nominatim
 from geopy import distance
+from geopy.exc import GeocoderUnavailable
+
+
+count = {} #reminder
+getLogger().setLevel(DEBUG)
+
+
+def crop_address(place):
+    """
+    Crops address and returns new variant
+    >>> crop_address("Jo's Cafe* San Marcos* Texas* USA")
+    ' San Marcos* Texas* USA'
+    >>> crop_address("San Marcos* Texas* USA")
+    ' Texas* USA'
+    >>> crop_address(" Texas* USA")
+    ' USA'
+    """
+
+    place = place.split("*")
+    place = "*".join(place[1:])
+
+    return place
+
+
+def memoize_and_write(func, places_dict):
+    """
+    Decorator for memoization
+    """
+    def wrapper(place):
+        try:
+            place = str(place)
+
+            original_place = place
+            while True:
+                if place not in places_dict.keys() and place != "nan":
+                    coordinates = func(place.replace("*", ""))
+                    if coordinates:
+                        coordinates = tuple([coordinates.point[0], coordinates.point[1]])
+                        places_dict[original_place] = coordinates
+                        with open("data/places_database", mode="a") as file:
+                            file.write(original_place + "," + str(coordinates) + "\n")
+                        debug(str(coordinates) + " returned")  # reminder
+                        return coordinates
+                    else:
+                        if len(place.split("*")) > 1:
+                            debug(place + "just have been cropped")
+                            place = crop_address(place)
+                        else:
+                            places_dict[original_place] = coordinates
+                            with open("data/places_database", mode="a") as file:
+                                file.write(original_place + "," + str(coordinates) + "\n")
+                            print(str(coordinates) + " returned for " + original_place)  # reminder
+                            return coordinates
+                elif place == "nan":
+                    debug("none returned")#reminder
+                    return None
+                else:
+                    raw_coordinates = places_dict[place]
+                    if isinstance(raw_coordinates, tuple):
+                        debug(str(raw_coordinates) + " returned")  # reminder
+                        return raw_coordinates
+                    try:
+                        try:
+                            coordinates = tuple([float(i) for i in tuple(raw_coordinates[1 : len(raw_coordinates) - 1].split(", "))])
+                            debug(str(coordinates) + " returned")  # reminder
+                            return coordinates
+                        except ValueError:
+                            print(raw_coordinates + " caused ValueError")  # reminder
+                            return None
+                    except:
+                        print(raw_coordinates + " caused other error")  # reminder
+                        return None
+        except GeocoderUnavailable:
+            print("GeocoderUnavailable error for this location:" + place + ". Proceeding...")
+            return None
+    return wrapper
 
 
 def parsing(lst=None):
@@ -36,29 +113,60 @@ def read_csv(path):
     """
     Reads csv file into the pandas dataframe
     """
-    data_base = pd.read_csv(path)
-    return data_base
+
+    data_base = pd.read_csv(path, dtype={'year': int})
+    places_dict = {}
+    try:
+        with open("data/places_database") as file:
+            for line in file:
+                line = line.strip("\n")
+                coma_pos = line.find(",")
+                if coma_pos != -1:
+                    places_dict[line[:coma_pos]] = line[coma_pos+1:]
+    except FileNotFoundError:
+        pass
+
+    return data_base, places_dict
 
 
-def geolocation(data_base, year, latitude, longitude):
+def geolocation(data_base, year, latitude, longitude, places_dict):
+    """
+    Function for geolocating points from database and calculating distance from them to the given user point.
+
+    >>> 33.5 <= geolocation(pd.DataFrame([["Film1", 2020, "Some info", "Los Angeles California USA"]], columns \
+    = ["name", "year", "addinfo", "place"]), 2020, 30, 30).iloc[0, 4][0] <= 34.5 and -118.5 <= geolocation(pd.DataFrame([["Film1", 2020, "Some info", "Los Angeles California USA"]], columns \
+    = ["name", "year", "addinfo", "place"]), 2020, 30, 30).iloc[0, 4][1] <= -117.5
+    True
+    """
 
     geolocator = Nominatim(user_agent="Films map")
-    geocode = RateLimiter(geolocator.geocode, min_delay_seconds=0.5)
+    geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1, max_retries=2, swallow_exceptions=True,\
+                          return_value_on_exception=None, error_wait_seconds=2)
+    geocode_modified = memoize_and_write(geocode, places_dict)
+
     condition = (data_base['year'] == year)
     valid_films = data_base[condition]
-    location_series = valid_films['place'].apply(geocode)
-    point_series = location_series.apply(lambda loc: tuple([loc.point[0], loc.point[1]]) if loc else None)
-    valid_films["points"] = point_series
+    print(valid_films)
+    location_series = valid_films['place'].apply(geocode_modified)
+    valid_films["points"] = location_series
     valid_films["distance_to_the_current_point"] = 0
 
-    for i in range(len(valid_films["points"])):
+    count[year] = len(valid_films)
+
+    """for i in range(len(valid_films["points"])):
         point = valid_films.iloc[i, 4]
-        valid_films.iloc[i, 5] = distance.distance(point, (latitude, longitude)).miles
+        if point != None:
+            valid_films.iloc[i, 5] = distance.distance(point, (latitude, longitude)).miles
+        else:
+            valid_films.iloc[i, 5] = 10**5 reminder"""
 
     return valid_films
 
 
 def creating_map(data_base, latitude, longitude):
+    """
+    Creates html file containing map with nearest films.
+    """
     def nearest_points(db):
         new_db = pd.DataFrame([])
         for i in range(min(len(db), 10)):
@@ -80,23 +188,53 @@ def creating_map(data_base, latitude, longitude):
     if check:
         fg = folium.FeatureGroup(name="Nearest films")
         data_base = nearest_points(data_base)
-        for point in data_base["points"]:
-            if point:
-                lat = point[0]
-                lon = point[1]
-                fg.add_child(folium.Marker(location=[lat, lon],
-                                           popup=folium.Popup("Film"),
-                                           icon=folium.Icon(color="red")))
+        if not data_base.empty:
+            for i in range(len(data_base["points"])):
+                if data_base.iloc[i, 2] == "NO DATA":
+                    html = """<body>
+                            <h4>{}</h4>
+                            Year: {}<br>
+                            <a href="https://www.google.com/search?q=%22{}%22"target="_blank">{}</a>
+                            </body>
+                            """
+                    html_format = html.format(data_base.iloc[i, 0], data_base.iloc[i, 1], data_base.iloc[i, 0],\
+                                              data_base.iloc[i, 0])
+                else:
+                    html = """<body>
+                            <h4>{}</h4>
+                            Year: {}<br>
+                            Additional info: {}
+                            <a href="https://www.google.com/search?q=%22{}%22"target="_blank">{}</a>
+                            </body>
+                            """
+                    html_format = html.format(data_base.iloc[i, 0], data_base.iloc[i, 1], data_base.iloc[i, 2],\
+                                              data_base.iloc[i, 0], data_base.iloc[i, 0])
+
+                iframe = folium.IFrame(html=html_format,
+                                       width=200,
+                                       height=100)
+                point = data_base.iloc[i, 4]
+                if point:
+                    lat = point[0]
+                    lon = point[1]
+                    fg.add_child(folium.Marker(location=[lat, lon],
+                                               popup=folium.Popup(iframe),
+                                               icon=folium.Icon(color="red")))
         map.add_child(fg)
+        map.add_child(folium.LayerControl())
         map.save('Films_map.html')
 
 
 def main():
-    pars_res = parsing(["2010", "80.2323", "23.67", "data/shortened_and_processed_locations_list(3000 lines)"])
-    db = geolocation(read_csv(pars_res[3]), pars_res[0], pars_res[1], pars_res[2])
-    creating_map(db, pars_res[1], pars_res[2])
+    for i in range(1909, 3000):
+        pars_res = parsing([str(i), "80.2323", "23.67", "data/processed_locations_list(full)"])
+        read_results = read_csv(pars_res[3])
+        db = geolocation(read_results[0], pars_res[0], pars_res[1], pars_res[2], read_results[1])
+        #creating_map(db, pars_res[1], pars_res[2]) reminder
+        print(i)
+        with open("count.txt", encoding="utf-8", mode="a") as counter:
+            counter.write("year processed: " + str(i) + ", total films: " + str(count[i]) + "\n")
 
 
 if __name__ == "__main__":
     main()
-
