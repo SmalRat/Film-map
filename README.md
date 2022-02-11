@@ -35,6 +35,6 @@ By clicking on markers, you can see some info about the film:
 You can also change layout in the option menu:
 <img src="screenshots/Options.png" alt="option menu"/>
 ## Cache
-It is highly recommended to download cache (data/places_database.csv). Terrificly sppeds up the process.
+It is highly recommended to download cache (data/places_database.csv). Terrificly speeds up the process.
 ## License
 [MIT](LICENSE.txt)
