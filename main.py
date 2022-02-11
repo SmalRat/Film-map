@@ -89,6 +89,7 @@ def memoize_and_write(func, places_dict):
                             print(raw_coordinates + " caused ValueError")
                             return None
                     except:
+                        print(raw_coordinates)
                         print(str(raw_coordinates) + " caused other error")
                         return None
         except GeocoderUnavailable:
@@ -314,14 +315,14 @@ def creating_map(data_base, latitude, longitude, full_data_base):
 
 
 def main():
-    for i in range(2008, 3000):#reminder
+    for i in range(1900, 3000):#reminder
         pars_res = parsing([str(i), "80.2323", "23.67", "data/processed_locations_list(full)"])
         read_results = read_csv(pars_res[3])
         db = geolocation(read_results[0], pars_res[0], pars_res[1], pars_res[2], read_results[1])
         # creating_map(db, pars_res[1], pars_res[2], read_results[0]) reminder
         print(i)
-        with open("count.txt", encoding="utf-8", mode="a") as counter:  # reminder
-            counter.write("year processed: " + str(i) + ", total films: " + str(count[i]) + "\n")
+        """with open("count.txt", encoding="utf-8", mode="a") as counter:  # reminder
+            counter.write("year processed: " + str(i) + ", total films: " + str(count[i]) + "\n")"""
 
 
 if __name__ == "__main__":
