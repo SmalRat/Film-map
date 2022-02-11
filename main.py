@@ -7,18 +7,21 @@ Also, there is another layer, which contains markers
 of films shoot in Ukraine.
 """
 
-import pandas as pd, argparse
-import folium
+
+import argparse
 import random
-from logging import DEBUG, debug, getLogger
+import warnings
+import pandas as pd
+import folium
+# from logging import DEBUG, debug, getLogger
 from geopy.extra.rate_limiter import RateLimiter
 from geopy.geocoders import Nominatim
 from geopy import distance
 from geopy.exc import GeocoderUnavailable
-import warnings
+
 
 warnings.simplefilter(action='ignore')
-getLogger().setLevel(DEBUG)
+# getLogger().setLevel(DEBUG)
 
 
 def crop_address(place):
@@ -68,7 +71,8 @@ def memoize_and_write(func, places_dict):
                             place = crop_address(place)
                         else:
                             places_dict[original_place] = coordinates
-                            with open("data/places_database.csv", mode="a", encoding="utf-8") as file:
+                            with open("data/places_database.csv", mode="a", encoding="utf-8")\
+                                    as file:
                                 file.write(original_place + "," + str(coordinates) + "\n")
                             # debug(str(coordinates) + " returned for " + original_place)
                             return coordinates
@@ -83,7 +87,8 @@ def memoize_and_write(func, places_dict):
                     try:
                         try:
                             coordinates = tuple(
-                                [float(i) for i in tuple(raw_coordinates[1: len(raw_coordinates) - 1].split(", "))])
+                                [float(i) for i in tuple(raw_coordinates[1:\
+                                len(raw_coordinates) - 1].split(", "))])
                             # debug(str(coordinates) + " returned")
                             return coordinates
                         except ValueError:
@@ -107,17 +112,22 @@ def parsing(lst=None):
     >>> parsing(["2020", "80", "90", "dataset"])
     (2020, 80.0, 90.0, 'dataset')
     """
-    parser = argparse.ArgumentParser(description="""Module, which reads data from a file with a films list, determines films,
-    made in the given year, and geolocation of their production places.
-    Then finds 10 or fewer such nearest to the given point places, makes markers
+    parser = argparse.ArgumentParser(description="""Module, which reads data from a file\
+     with a films list, determines films, \
+     made in the given year, and geolocation of their production places.
+    Then finds 10 or fewer such nearest to the given point places, makes markers \
     for them, and creates a map with a  layer of that markers.
-    Also, there is another layer, which contains markers
-    of film shooting places in Ukraine.
-    You should enter the year of the films' production, the coordinates of the needed point, in comparison to which
-    nearest films will be displayed (lat, lon), and the path to the dataset with your films.""")
-    parser.add_argument("year", metavar="Year", type=int, help="Year of films, which will be displayed.")
-    parser.add_argument("latitude", metavar="Latitude", type=float, help="Latitude of your point.")
-    parser.add_argument("longitude", metavar="Longitude", type=float, help="Longitude of your point.")
+    Also, there is another layer, which contains markers\
+     of film shooting places in Ukraine.
+    You should enter the year of the films' production, the coordinates of the needed point,\
+     in comparison to which\
+      nearest films will be displayed (lat, lon), and the path to the dataset with your films.""")
+    parser.add_argument("year", metavar="Year", type=int, help="Year of films, which\
+     will be displayed.")
+    parser.add_argument("latitude", metavar="Latitude", type=float, \
+                        help="Latitude of your point.")
+    parser.add_argument("longitude", metavar="Longitude", type=float,\
+                        help="Longitude of your point.")
     parser.add_argument("path", metavar="Path", help="Path to your dataset.")
 
     if lst:
@@ -161,11 +171,18 @@ def read_csv():
 
 def geolocation(data_base, year, latitude, longitude, geofunc):
     """
-    Function for geolocating points from database and calculating distance from them to the given user point.
+    Function for geolocating points from database and calculating distance from them to
+    the given user point.
 
-    >>> 33.5 <= geolocation(pd.DataFrame([["Film1", 2020, "Some info", "Los Angeles California USA"]], columns \
-    = ["name", "year", "addinfo", "place"]), 2020, 30, 30, memoize_and_write(RateLimiter(Nominatim(user_agent="Films map").geocode), {})).iloc[0, 4][0] <= 34.5 and -118.5 <= geolocation(pd.DataFrame([["Film1", 2020, "Some info", "Los Angeles California USA"]], columns \
-    = ["name", "year", "addinfo", "place"]), 2020, 30, 30, memoize_and_write(RateLimiter(Nominatim(user_agent="Films map").geocode), {})).iloc[0, 4][1] <= -117.5
+    >>> 33.5 <= geolocation(pd.DataFrame([["Film1", 2020, "Some info",\
+     "Los Angeles California USA"]], columns \
+    = ["name", "year", "addinfo", "place"]), 2020, 30, 30,\
+     memoize_and_write(RateLimiter(Nominatim(user_agent="Films map").geocode), {})).iloc[0, 4][0]\
+      <= 34.5 and -118.5 <= geolocation(pd.DataFrame([["Film1", 2020,\
+       "Some info", "Los Angeles California USA"]], columns \
+    = ["name", "year", "addinfo", "place"]), 2020, 30, 30,\
+     memoize_and_write(RateLimiter(Nominatim(user_agent="Films map").geocode),\
+      {})).iloc[0, 4][1] <= -117.5
     True
     """
     valid_films = data_base[data_base['year'] == year]
@@ -174,7 +191,7 @@ def geolocation(data_base, year, latitude, longitude, geofunc):
 
     for i in range(len(valid_films["points"])):
         point = valid_films.iloc[i, 4]
-        if point != None:
+        if point is not None:
             valid_films.iloc[i, 5] = distance.distance(point, (latitude, longitude)).miles
         else:
             valid_films.iloc[i, 5] = 10**5
@@ -196,8 +213,10 @@ def creating_map(data_base, latitude, longitude, full_data_base, geofunc):
         for i in range(min(len(db), 10)):
             idx = db["distance_to_the_current_point"].idxmin()
             new_db[i] = db.loc[idx, :]
-            if i > 0 and new_db[i]["distance_to_the_current_point"] == new_db[i - 1]["distance_to_the_current_point"]:
-                new_db[i]["points"] = (new_db[i]["points"][0] + random.random() / 100, new_db[i]["points"][1] + \
+            if i > 0 and new_db[i]["distance_to_the_current_point"] == new_db[i - 1]\
+                    ["distance_to_the_current_point"]:
+                new_db[i]["points"] = (new_db[i]["points"][0] +\
+                                       random.random() / 100, new_db[i]["points"][1] + \
                                        random.random() / 100)
             db = db.drop(idx)
         new_db = new_db.T
@@ -216,7 +235,8 @@ def creating_map(data_base, latitude, longitude, full_data_base, geofunc):
                     html = """<body>
                                     <h4>{}</h4>
                                     Year: {}<br>
-                                    <a href="https://www.google.com/search?q=%22{}%22"target="_blank">{}</a>
+                                    <a href="https://www.google.com/search?q=%22{}%22"\
+                                    target="_blank">{}</a>
                                     </body>
                                     """
                     html_format = html.format(db.iloc[i, 0], db.iloc[i, 1], db.iloc[i, 0], \
@@ -226,7 +246,8 @@ def creating_map(data_base, latitude, longitude, full_data_base, geofunc):
                                     <h4>{}</h4>
                                     Year: {}<br>
                                     Additional info: {}
-                                    <a href="https://www.google.com/search?q=%22{}%22"target="_blank">{}</a>
+                                    <a href="https://www.google.com/search?q=%22{}%22"\
+                                    target="_blank">{}</a>
                                     </body>
                                     """
                     html_format = html.format(db.iloc[i, 0], db.iloc[i, 1], db.iloc[i, 2], \
@@ -258,20 +279,24 @@ def creating_map(data_base, latitude, longitude, full_data_base, geofunc):
                     html = """<body>
                                     <h4>{}</h4>
                                     Year: {}<br>
-                                    <a href="https://www.google.com/search?q=%22{}%22"target="_blank">{}</a>
+                                    <a href="https://www.google.com/search?q=%22{}\
+                                    %22"target="_blank">{}</a>
                                     </body>
                                     """
-                    html_format = html.format(ukr_films_db.iloc[i, 0], ukr_films_db.iloc[i, 1], ukr_films_db.iloc[i, 0], \
+                    html_format = html.format(ukr_films_db.iloc[i, 0], \
+                                              ukr_films_db.iloc[i, 1], ukr_films_db.iloc[i, 0], \
                                               ukr_films_db.iloc[i, 0])
                 else:
                     html = """<body>
                                     <h4>{}</h4>
                                     Year: {}<br>
                                     Additional info: {}
-                                    <a href="https://www.google.com/search?q=%22{}%22"target="_blank">{}</a>
+                                    <a href="https://www.google.com/search?q\
+                                    =%22{}%22"target="_blank">{}</a>
                                     </body>
                                     """
-                    html_format = html.format(ukr_films_db.iloc[i, 0], ukr_films_db.iloc[i, 1], ukr_films_db.iloc[i, 2], \
+                    html_format = html.format(ukr_films_db.iloc[i, 0],\
+                                              ukr_films_db.iloc[i, 1], ukr_films_db.iloc[i, 2], \
                                               ukr_films_db.iloc[i, 0], ukr_films_db.iloc[i, 0])
 
                 iframe = folium.IFrame(html=html_format,
@@ -312,15 +337,19 @@ def creating_map(data_base, latitude, longitude, full_data_base, geofunc):
 
 
 def main():
+    """
+    Main function
+    """
     pars_res = parsing()
     import data_processing
     try:
-        data_processing.main(pars_res[3])  # processing data in the given file into the appropriate\
-        # format and writting it to the data/processed_locations_list(full).csv
+        data_processing.main(pars_res[3])  # processing data in the given file into\
+        # the appropriate format and writting it to the data/processed_locations_list(full).csv
         read_results = read_csv()
 
         geolocator = Nominatim(user_agent="Films map")
-        geocode = RateLimiter(geolocator.geocode, min_delay_seconds=0.3, max_retries=2, swallow_exceptions=True, \
+        geocode = RateLimiter(geolocator.geocode, min_delay_seconds=0.3, max_retries=2,\
+                              swallow_exceptions=True, \
                               return_value_on_exception=None, error_wait_seconds=2)
         geocode_modified = memoize_and_write(geocode, read_results[1])
         print("Starting to search the geolocations...")

@@ -9,7 +9,8 @@ def main(path):
     """
     with open(path, encoding="utf-8", errors="ignore") as file_to_read:
         print("Found the file specified, processing the data...")
-        with open("data/processed_locations_list(full).csv", encoding="utf-8", mode="w") as file_to_write:
+        with open("data/processed_locations_list(full).csv", encoding="utf-8", mode="w")\
+                as file_to_write:
             i = 0
             file_to_write.write("name,year,addinfo,place\n")
             for line in file_to_read:
@@ -49,7 +50,8 @@ def main(path):
                     else:
                         addinfo = line[brackets2_pos1 + 1: brackets2_pos2].replace(",", "")
                     if quote_pos1<brackets1_pos1:
-                        line = line[max(quote_pos2+1, brackets1_pos2+1, brackets2_pos2+1):].strip(" \t\n")
+                        line = line[max(quote_pos2+1, brackets1_pos2+1, \
+                                        brackets2_pos2+1):].strip(" \t\n")
                     else:
                         line = line[max(brackets1_pos2+1, brackets2_pos2+1):].strip(" \t\n")
 
