@@ -136,14 +136,14 @@ def parsing(lst=None):
     return results.year, results.latitude, results.longitude, results.path
 
 
-def read_csv(path):
+def read_csv():
     """
     Reads csv file (path) into the pandas dataframe.
     Also tries to open data/places_database.csv cache file
     and store info from that file into the dictionary.
     """
 
-    data_base = pd.read_csv(path, dtype={'year': int})
+    data_base = pd.read_csv("data/processed_locations_list(full).csv", dtype={'year': int})
     places_dict = {}
 
     try:
@@ -154,7 +154,7 @@ def read_csv(path):
                 if coma_pos != -1:
                     places_dict[line[:coma_pos]] = line[coma_pos + 1:]
     except FileNotFoundError:
-        pass
+        print("Haven't found cache file, the new one will be created...")
 
     return data_base, places_dict
 
@@ -297,27 +297,39 @@ def creating_map(data_base, latitude, longitude, full_data_base, geofunc):
     except:
         print("Wrong coordinates!")
     if check:
+
+        print("Creating markers of nearest films layer...")
         fg = nearest_films(data_base)
+        print("Creating markers of ukrainian films layer...")
         ukr_fg = ukr_films(full_data_base)
 
         films_map.add_child(ukr_fg)
         films_map.add_child(fg)
         films_map.add_child(folium.LayerControl())
+
+        print("Saving map...")
         films_map.save('Films_map.html')
 
 
 def main():
     pars_res = parsing()
-    read_results = read_csv(pars_res[3])
+    import data_processing
+    try:
+        data_processing.main(pars_res[3])  # processing data in the given file into the appropriate\
+        # format and writting it to the data/processed_locations_list(full).csv
+        read_results = read_csv()
 
-    geolocator = Nominatim(user_agent="Films map")
-    geocode = RateLimiter(geolocator.geocode, min_delay_seconds=0.3, max_retries=2, swallow_exceptions=True, \
-                          return_value_on_exception=None, error_wait_seconds=2)
-    geocode_modified = memoize_and_write(geocode, read_results[1])
-
-    db = geolocation(read_results[0], pars_res[0], pars_res[1], pars_res[2], geocode_modified)
-    creating_map(db, pars_res[1], pars_res[2], read_results[0], geocode_modified)
-    print("Success, look at Films_map.html")
+        geolocator = Nominatim(user_agent="Films map")
+        geocode = RateLimiter(geolocator.geocode, min_delay_seconds=0.3, max_retries=2, swallow_exceptions=True, \
+                              return_value_on_exception=None, error_wait_seconds=2)
+        geocode_modified = memoize_and_write(geocode, read_results[1])
+        print("Starting to search the geolocations...")
+        db = geolocation(read_results[0], pars_res[0], pars_res[1], pars_res[2], geocode_modified)
+        print("All posible geolocations found. Creating map...")
+        creating_map(db, pars_res[1], pars_res[2], read_results[0], geocode_modified)
+        print("Success, look at Films_map.html!")
+    except FileNotFoundError:
+        print("Failure: haven't found the file specified!")
 
 
 if __name__ == "__main__":

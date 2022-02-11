@@ -3,18 +3,19 @@ Creates new list of films, shortened and processed version of locations.list
 """
 
 
-def main():
+def main(path):
     """
     Executes all module work.
     """
-    with open("data/locations.list", encoding="utf-8", errors="ignore") as file_to_read:
-        with open("data/processed_locations_list(full)", encoding="utf-8", mode="w") as file_to_write:
+    with open(path, encoding="utf-8", errors="ignore") as file_to_read:
+        print("Found the file specified, processing the data...")
+        with open("data/processed_locations_list(full).csv", encoding="utf-8", mode="w") as file_to_write:
             i = 0
             file_to_write.write("name,year,addinfo,place\n")
             for line in file_to_read:
                 if 0 <= i <= 13:
                     i+=1
-                elif i <= 10000013 and not line.startswith("----"):
+                elif not line.startswith("----"):
                     quote_pos1 = line.find('"')
                     quote_pos2 = line.find('"', quote_pos1 + 1)
                     brackets1_pos1 = line.find('(')
@@ -63,9 +64,8 @@ def main():
                         place = place[:place.find("[now ")]
                     file_to_write.write(title + "," + year + "," + addinfo + "," + place + "\n")
                     i+=1
-                else:
-                    continue
+    print("Data processed, new csv file created.")
 
 
 if __name__ == "__main__":
-    main()
+    main("data/locations.list")
