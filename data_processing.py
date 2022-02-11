@@ -1,5 +1,5 @@
 """
-Creates new list of films, shortened version of locations.list
+Creates new list of films, shortened and processed version of locations.list
 """
 
 

@@ -1007,3 +1007,4 @@ year processed: 2004, total films: 28107
 year processed: 2005, total films: 34585
 year processed: 2006, total films: 35968
 year processed: 2007, total films: 35337
+year processed: 2008, total films: 38687

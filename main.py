@@ -57,7 +57,7 @@ def memoize_and_write(func, places_dict):
                     if coordinates:
                         coordinates = tuple([coordinates.point[0], coordinates.point[1]])
                         places_dict[original_place] = coordinates
-                        with open("data/places_database", mode="a") as file:
+                        with open("data/places_database", mode="a", encoding="utf-8") as file:
                             file.write(original_place + "," + str(coordinates) + "\n")
                         # debug(str(coordinates) + " returned")
                         return coordinates
@@ -67,7 +67,7 @@ def memoize_and_write(func, places_dict):
                             place = crop_address(place)
                         else:
                             places_dict[original_place] = coordinates
-                            with open("data/places_database", mode="a") as file:
+                            with open("data/places_database", mode="a", encoding="utf-8") as file:
                                 file.write(original_place + "," + str(coordinates) + "\n")
                             print(str(coordinates) + " returned for " + original_place)
                             return coordinates
@@ -106,7 +106,14 @@ def parsing(lst=None):
     >>> parsing(["2020", "80", "90", "dataset"])
     (2020, 80.0, 90.0, 'dataset')
     """
-    parser = argparse.ArgumentParser(description=" ")
+    parser = argparse.ArgumentParser(description="""Module, which reads data from a file with a films list, determines films,
+    made in the given year, and geolocation of their production places.
+    Then finds 10 or fewer such nearest to the given point places, makes markers
+    for them, and creates a map with a  layer of that markers.
+    Also, there is another layer, which contains markers
+    of film shooting places in Ukraine.
+    You should enter the year of the films' production, the coordinates of the needed point, in comparison to which
+    nearest films will be displayed (lat, lon), and the path to the dataset with your films.""")
     parser.add_argument("year", metavar="Year", type=int, help="Year of films, which will be displayed.")
     parser.add_argument("latitude", metavar="Latitude", type=float, help="Latitude of your point.")
     parser.add_argument("longitude", metavar="Longitude", type=float, help="Longitude of your point.")
@@ -138,7 +145,7 @@ def read_csv(path):
     places_dict = {}
 
     try:
-        with open("data/places_database") as file:
+        with open("data/places_database", encoding="utf-8") as file:
             for line in file:
                 line = line.strip("\n")
                 coma_pos = line.find(",")
@@ -307,7 +314,7 @@ def creating_map(data_base, latitude, longitude, full_data_base):
 
 
 def main():
-    for i in range(2000, 3000):
+    for i in range(2008, 3000):#reminder
         pars_res = parsing([str(i), "80.2323", "23.67", "data/processed_locations_list(full)"])
         read_results = read_csv(pars_res[3])
         db = geolocation(read_results[0], pars_res[0], pars_res[1], pars_res[2], read_results[1])
