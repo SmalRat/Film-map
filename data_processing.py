@@ -17,12 +17,12 @@ def main():
                 elif i <= 10000013 and not line.startswith("----"):
                     quote_pos1 = line.find('"')
                     quote_pos2 = line.find('"', quote_pos1 + 1)
-                    brackets1_pos1 = line.find('(', quote_pos2 + 1)
+                    brackets1_pos1 = line.find('(')
                     brackets1_pos2 = line.find(')', brackets1_pos1 + 1)
                     brackets2_pos1 = line.find('{', brackets1_pos2 + 1)
                     brackets2_pos2 = line.find('}', brackets2_pos1 + 1)
 
-                    if quote_pos1 == -1 or quote_pos2 == -1:
+                    if quote_pos1 == -1 or quote_pos2 == -1 or quote_pos1>brackets1_pos1:
                         title = line[:brackets1_pos1].replace(",", "")
                     else:
                         title = line[quote_pos1+1: quote_pos2].replace(",", "")
@@ -47,8 +47,10 @@ def main():
                         addinfo = "NO DATA"
                     else:
                         addinfo = line[brackets2_pos1 + 1: brackets2_pos2].replace(",", "")
-
-                    line = line[max(quote_pos2+1, brackets1_pos2+1, brackets2_pos2+1):].strip(" \t\n")
+                    if quote_pos1<brackets1_pos1:
+                        line = line[max(quote_pos2+1, brackets1_pos2+1, brackets2_pos2+1):].strip(" \t\n")
+                    else:
+                        line = line[max(brackets1_pos2+1, brackets2_pos2+1):].strip(" \t\n")
 
                     brackets1_pos3 = line.find('(')
                     brackets1_pos4 = line.find(')')
@@ -57,7 +59,8 @@ def main():
                         place = line[:brackets1_pos3].strip(" \t\n").replace(",", "*")
                     else:
                         place = line.strip(" \t\n").replace(",", "*")
-
+                    if "[now " in place:
+                        place = place[:place.find("[now ")]
                     file_to_write.write(title + "," + year + "," + addinfo + "," + place + "\n")
                     i+=1
                 else:

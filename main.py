@@ -16,7 +16,6 @@ from geopy.geocoders import Nominatim
 from geopy import distance
 from geopy.exc import GeocoderUnavailable
 
-count = {}  # reminder
 getLogger().setLevel(DEBUG)
 
 
@@ -57,7 +56,7 @@ def memoize_and_write(func, places_dict):
                     if coordinates:
                         coordinates = tuple([coordinates.point[0], coordinates.point[1]])
                         places_dict[original_place] = coordinates
-                        with open("data/places_database", mode="a", encoding="utf-8") as file:
+                        with open("data/places_database.csv", mode="a", encoding="utf-8") as file:
                             file.write(original_place + "," + str(coordinates) + "\n")
                         # debug(str(coordinates) + " returned")
                         return coordinates
@@ -67,9 +66,9 @@ def memoize_and_write(func, places_dict):
                             place = crop_address(place)
                         else:
                             places_dict[original_place] = coordinates
-                            with open("data/places_database", mode="a", encoding="utf-8") as file:
+                            with open("data/places_database.csv", mode="a", encoding="utf-8") as file:
                                 file.write(original_place + "," + str(coordinates) + "\n")
-                            print(str(coordinates) + " returned for " + original_place)
+                            # debug(str(coordinates) + " returned for " + original_place)
                             return coordinates
                 elif place == "nan":
                     # debug("none returned")
@@ -86,11 +85,11 @@ def memoize_and_write(func, places_dict):
                             # debug(str(coordinates) + " returned")
                             return coordinates
                         except ValueError:
-                            print(raw_coordinates + " caused ValueError")
+                            # debug(raw_coordinates + " caused ValueError")
                             return None
                     except:
-                        print(raw_coordinates)
-                        print(str(raw_coordinates) + " caused other error")
+                        # debug(raw_coordinates)
+                        # debug(" caused other error")
                         return None
         except GeocoderUnavailable:
             print("GeocoderUnavailable error for this location:" + place + ". Proceeding...")
@@ -138,7 +137,7 @@ def parsing(lst=None):
 def read_csv(path):
     """
     Reads csv file (path) into the pandas dataframe.
-    Also tries to open data/places_database cache file
+    Also tries to open data/places_database.csv cache file
     and store info from that file into the dictionary.
     """
 
@@ -146,7 +145,7 @@ def read_csv(path):
     places_dict = {}
 
     try:
-        with open("data/places_database", encoding="utf-8") as file:
+        with open("data/places_database.csv", encoding="utf-8") as file:
             for line in file:
                 line = line.strip("\n")
                 coma_pos = line.find(",")
@@ -158,41 +157,30 @@ def read_csv(path):
     return data_base, places_dict
 
 
-def geolocation(data_base, year, latitude, longitude, places_dict):
+def geolocation(data_base, year, latitude, longitude, geofunc):
     """
     Function for geolocating points from database and calculating distance from them to the given user point.
 
     >>> 33.5 <= geolocation(pd.DataFrame([["Film1", 2020, "Some info", "Los Angeles California USA"]], columns \
-    = ["name", "year", "addinfo", "place"]), 2020, 30, 30).iloc[0, 4][0] <= 34.5 and -118.5 <= geolocation(pd.DataFrame([["Film1", 2020, "Some info", "Los Angeles California USA"]], columns \
-    = ["name", "year", "addinfo", "place"]), 2020, 30, 30).iloc[0, 4][1] <= -117.5
+    = ["name", "year", "addinfo", "place"]), 2020, 30, 30, memoize_and_write(RateLimiter(Nominatim(user_agent="Films map").geocode), {})).iloc[0, 4][0] <= 34.5 and -118.5 <= geolocation(pd.DataFrame([["Film1", 2020, "Some info", "Los Angeles California USA"]], columns \
+    = ["name", "year", "addinfo", "place"]), 2020, 30, 30, memoize_and_write(RateLimiter(Nominatim(user_agent="Films map").geocode), {})).iloc[0, 4][1] <= -117.5
     True
     """
-
-    geolocator = Nominatim(user_agent="Films map")
-    geocode = RateLimiter(geolocator.geocode, min_delay_seconds=0.3, max_retries=2, swallow_exceptions=True, \
-                          return_value_on_exception=None, error_wait_seconds=2)
-    geocode_modified = memoize_and_write(geocode, places_dict)
-
-    condition = (data_base['year'] == year)
-    valid_films = data_base[condition]
-    print(valid_films) #reminder
-    location_series = valid_films['place'].apply(geocode_modified)
-    valid_films["points"] = location_series
+    valid_films = data_base[data_base['year'] == year]
+    valid_films["points"] = valid_films['place'].apply(geofunc)
     valid_films["distance_to_the_current_point"] = 0
 
-    count[year] = len(valid_films)
-
-    """for i in range(len(valid_films["points"])):
+    for i in range(len(valid_films["points"])):
         point = valid_films.iloc[i, 4]
         if point != None:
             valid_films.iloc[i, 5] = distance.distance(point, (latitude, longitude)).miles
         else:
-            valid_films.iloc[i, 5] = 10**5 reminder"""
+            valid_films.iloc[i, 5] = 10**5
 
     return valid_films
 
 
-def creating_map(data_base, latitude, longitude, full_data_base):
+def creating_map(data_base, latitude, longitude, full_data_base, geofunc):
     """
     Creates html file containing map with nearest films as second layer
     and films with scenes made in Ukraine as the third.
@@ -258,12 +246,12 @@ def creating_map(data_base, latitude, longitude, full_data_base):
         """
         Creates feature group containing markers with Ukrainian films.
         """
-        ukr_films_db = db["Ukraine" in db['place']]
+        ukr_films_db = db[db['place'].str.contains("Ukraine", na=False)]
         ukr_fg = folium.FeatureGroup(name="Ukrainian films")
-        print(ukr_films_db)
+        ukr_films_db["points"] = ukr_films_db['place'].apply(geofunc)
 
         if not ukr_films_db.empty:
-            for i in range(len(ukr_films_db["points"])):
+            for i in range(len(ukr_films_db["name"])):
                 if ukr_films_db.iloc[i, 2] == "NO DATA":
                     html = """<body>
                                     <h4>{}</h4>
@@ -287,7 +275,9 @@ def creating_map(data_base, latitude, longitude, full_data_base):
                 iframe = folium.IFrame(html=html_format,
                                        width=200,
                                        height=100)
+
                 point = ukr_films_db.iloc[i, 4]
+
                 if point:
                     lat = point[0]
                     lon = point[1]
@@ -299,7 +289,7 @@ def creating_map(data_base, latitude, longitude, full_data_base):
 
     check = False
     try:
-        map = folium.Map(location=[latitude, longitude],
+        films_map = folium.Map(location=[latitude, longitude],
                          zoom_start=3)
         check = True
     except:
@@ -308,21 +298,24 @@ def creating_map(data_base, latitude, longitude, full_data_base):
         fg = nearest_films(data_base)
         ukr_fg = ukr_films(full_data_base)
 
-        map.add_child(ukr_fg)
-        map.add_child(fg)
-        map.add_child(folium.LayerControl())
-        map.save('Films_map.html')
+        films_map.add_child(ukr_fg)
+        films_map.add_child(fg)
+        films_map.add_child(folium.LayerControl())
+        films_map.save('Films_map.html')
 
 
 def main():
-    for i in range(1900, 3000):#reminder
-        pars_res = parsing([str(i), "80.2323", "23.67", "data/processed_locations_list(full)"])
-        read_results = read_csv(pars_res[3])
-        db = geolocation(read_results[0], pars_res[0], pars_res[1], pars_res[2], read_results[1])
-        # creating_map(db, pars_res[1], pars_res[2], read_results[0]) reminder
-        print(i)
-        """with open("count.txt", encoding="utf-8", mode="a") as counter:  # reminder
-            counter.write("year processed: " + str(i) + ", total films: " + str(count[i]) + "\n")"""
+    pars_res = parsing()
+    read_results = read_csv(pars_res[3])
+
+    geolocator = Nominatim(user_agent="Films map")
+    geocode = RateLimiter(geolocator.geocode, min_delay_seconds=0.3, max_retries=2, swallow_exceptions=True, \
+                          return_value_on_exception=None, error_wait_seconds=2)
+    geocode_modified = memoize_and_write(geocode, read_results[1])
+
+    db = geolocation(read_results[0], pars_res[0], pars_res[1], pars_res[2], geocode_modified)
+    creating_map(db, pars_res[1], pars_res[2], read_results[0], geocode_modified)
+    print("Success, look at Films_map.html")
 
 
 if __name__ == "__main__":
