@@ -4,7 +4,7 @@ made in the given year, and geolocation of their production places.
 Then finds 10 or fewer such nearest to the given point places, makes markers
 for them, and creates a map with a  layer of that markers.
 Also, there is another layer, which contains markers
-of film shooting places in Ukraine.
+of films shoot in Ukraine.
 """
 
 import pandas as pd, argparse
@@ -147,6 +147,7 @@ def read_csv():
 
     try:
         with open("data/places_database.csv", encoding="utf-8") as file:
+            print("Cache file found...")
             for line in file:
                 line = line.strip("\n")
                 coma_pos = line.find(",")
@@ -198,7 +199,7 @@ def creating_map(data_base, latitude, longitude, full_data_base, geofunc):
             if i > 0 and new_db[i]["distance_to_the_current_point"] == new_db[i - 1]["distance_to_the_current_point"]:
                 new_db[i]["points"] = (new_db[i]["points"][0] + random.random() / 100, new_db[i]["points"][1] + \
                                        random.random() / 100)
-            db.drop(idx)
+            db = db.drop(idx)
         new_db = new_db.T
 
         return new_db
@@ -248,7 +249,7 @@ def creating_map(data_base, latitude, longitude, full_data_base, geofunc):
         Creates feature group containing markers with Ukrainian films.
         """
         ukr_films_db = db[db['place'].str.contains("Ukraine", na=False)]
-        ukr_fg = folium.FeatureGroup(name="Ukrainian films")
+        ukr_fg = folium.FeatureGroup(name="Films shoot in Ukraine")
         ukr_films_db["points"] = ukr_films_db['place'].apply(geofunc)
 
         if not ukr_films_db.empty:
