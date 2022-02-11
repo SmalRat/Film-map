@@ -103,7 +103,6 @@ def memoize_and_write(func, places_dict):
 def parsing(lst=None):
     """
     Function for parsing command line
-    #reminder
 
     >>> parsing(["2020", "80", "90", "dataset"])
     (2020, 80.0, 90.0, 'dataset')
