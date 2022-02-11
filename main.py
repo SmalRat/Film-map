@@ -15,7 +15,9 @@ from geopy.extra.rate_limiter import RateLimiter
 from geopy.geocoders import Nominatim
 from geopy import distance
 from geopy.exc import GeocoderUnavailable
+import warnings
 
+warnings.simplefilter(action='ignore')
 getLogger().setLevel(DEBUG)
 
 
